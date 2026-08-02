@@ -1,0 +1,11 @@
+# frozen_string_literal: true
+
+# MGGT1103 - Groupe 4
+# Phase 1 : infrastructure VirtualBox/Vagrant.
+#
+# La configuration complète du Master et des Workers sera ajoutée
+# après validation de la structure du projet.
+
+Vagrant.configure("2") do |config|
+  # Configuration à compléter pendant la Phase 1.
+end

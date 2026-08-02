@@ -1,0 +1,17 @@
+---
+# Playbook principal de la Phase 1.
+#
+# Il sera construit progressivement pour :
+# 1. préparer les systèmes ;
+# 2. appliquer le hardening ;
+# 3. configurer SSH et les limites système ;
+# 4. installer Docker ;
+# 5. installer K3s Server sur le Master ;
+# 6. installer K3s Agent sur les Workers.
+
+- name: Bootstrap du cluster MGGT1103
+  hosts: k3s_cluster
+  become: true
+  gather_facts: true
+
+  tasks: []

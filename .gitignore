@@ -1,0 +1,30 @@
+# Vagrant
+.vagrant/
+
+# Rapports générés
+reports/*
+!reports/.gitkeep
+
+# Ansible
+*.retry
+.vault_pass*
+vault-password*
+ansible/*.key
+ansible/*.pem
+
+# Secrets locaux
+.env
+.env.*
+*.secret
+
+# Journaux
+*.log
+
+# Système
+.DS_Store
+Thumbs.db
+
+# Éditeurs
+.vscode/
+.idea/
+*~
