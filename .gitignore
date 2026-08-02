@@ -31,3 +31,5 @@ Thumbs.db
 infra/vagrant/config.local.yml
 infra/vagrant/.vagrant/
 .venv-ansible/
+.vault-pass
+vault-pass
