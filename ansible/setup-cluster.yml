@@ -14,13 +14,19 @@
           - ansible_distribution == "Ubuntu"
           - ansible_distribution_major_version | int == 24
         fail_msg: >-
-          Ce projet exige Ubuntu 24.04. Système détecté :
+          Système incompatible :
           {{ ansible_distribution }} {{ ansible_distribution_version }}
         success_msg: >-
           Système compatible :
           {{ ansible_distribution }} {{ ansible_distribution_version }}
+      tags:
+        - always
 
   roles:
     - role: common
       tags:
         - common
+
+    - role: docker
+      tags:
+        - docker

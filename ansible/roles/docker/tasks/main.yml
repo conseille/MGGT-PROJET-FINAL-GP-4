@@ -1,3 +1,78 @@
 ---
-# Installation automatisée de Docker.
-[]
+- name: Supprimer les paquets Docker incompatibles
+  ansible.builtin.apt:
+    name: "{{ docker_conflicting_packages }}"
+    state: absent
+    purge: true
+
+- name: Installer les prérequis Docker
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Créer le dossier des clés APT
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Télécharger la clé officielle Docker
+  ansible.builtin.get_url:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    dest: /etc/apt/keyrings/docker.asc
+    owner: root
+    group: root
+    mode: "0644"
+    force: false
+
+- name: Détecter l'architecture Debian
+  ansible.builtin.command:
+    cmd: dpkg --print-architecture
+  register: docker_architecture
+  changed_when: false
+
+- name: Configurer le dépôt officiel Docker
+  ansible.builtin.template:
+    src: docker.sources.j2
+    dest: /etc/apt/sources.list.d/docker.sources
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Installer Docker Engine et ses plugins
+  ansible.builtin.apt:
+    name: "{{ docker_packages }}"
+    state: present
+    update_cache: true
+
+- name: Activer et démarrer Docker
+  ansible.builtin.systemd_service:
+    name: docker
+    state: started
+    enabled: true
+
+- name: Ajouter les utilisateurs au groupe Docker
+  ansible.builtin.user:
+    name: "{{ item }}"
+    groups: docker
+    append: true
+  loop: "{{ docker_users }}"
+
+- name: Réinitialiser la connexion après changement de groupe
+  ansible.builtin.meta: reset_connection
+
+- name: Vérifier Docker Engine
+  ansible.builtin.command:
+    cmd: docker version
+  changed_when: false
+
+- name: Vérifier Docker Compose
+  ansible.builtin.command:
+    cmd: docker compose version
+  changed_when: false
