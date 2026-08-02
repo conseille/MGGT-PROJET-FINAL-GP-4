@@ -1,0 +1,17 @@
+---
+# Copier ce fichier sous le nom config.local.yml sur chaque laptop.
+# config.local.yml ne doit pas être envoyé dans Git.
+
+node_name: master
+hostname: master
+node_role: master
+
+# Nom exact retourné par VBoxManage list bridgedifs.
+bridge_name: "NOM EXACT DE LA CARTE RESEAU"
+
+# Ressources adaptées au laptop concerné.
+memory: 3072
+cpus: 2
+
+# Image Ubuntu utilisée par Vagrant.
+box: "bento/ubuntu-24.04"

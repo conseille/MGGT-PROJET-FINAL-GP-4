@@ -1,11 +1,92 @@
 # frozen_string_literal: true
 
-# MGGT1103 - Groupe 4
-# Phase 1 : infrastructure VirtualBox/Vagrant.
-#
-# La configuration complète du Master et des Workers sera ajoutée
-# après validation de la structure du projet.
+require "yaml"
+
+CONFIG_FILE = File.expand_path("config.local.yml", __dir__)
+
+unless File.file?(CONFIG_FILE)
+  abort <<~MESSAGE
+
+    ERREUR : config.local.yml est introuvable.
+
+    Copiez d'abord config.example.yml :
+
+      copy config.example.yml config.local.yml
+
+    Puis adaptez les valeurs au laptop concerne.
+
+  MESSAGE
+end
+
+settings = YAML.load_file(CONFIG_FILE)
+
+required_keys = %w[
+  node_name
+  hostname
+  node_role
+  bridge_name
+  memory
+  cpus
+  box
+]
+
+missing_keys = required_keys.select do |key|
+  !settings.key?(key) || settings[key].to_s.strip.empty?
+end
+
+unless missing_keys.empty?
+  abort "ERREUR : valeurs manquantes dans config.local.yml : #{missing_keys.join(', ')}"
+end
+
+node_name = settings.fetch("node_name").to_s
+hostname = settings.fetch("hostname").to_s
+node_role = settings.fetch("node_role").to_s
+bridge_name = settings.fetch("bridge_name").to_s
+memory = settings.fetch("memory").to_i
+cpus = settings.fetch("cpus").to_i
+box = settings.fetch("box").to_s
+
+unless node_name.match?(/\A[a-z0-9-]+\z/)
+  abort "ERREUR : node_name doit contenir seulement des minuscules, chiffres ou tirets."
+end
+
+unless hostname.match?(/\A[a-z0-9-]+\z/)
+  abort "ERREUR : hostname doit contenir seulement des minuscules, chiffres ou tirets."
+end
+
+unless %w[master worker].include?(node_role)
+  abort "ERREUR : node_role doit être master ou worker."
+end
+
+if memory < 2048
+  abort "ERREUR : la VM doit disposer d'au moins 2048 Mo de RAM."
+end
+
+if cpus < 1
+  abort "ERREUR : la VM doit disposer d'au moins 1 processeur."
+end
 
 Vagrant.configure("2") do |config|
-  # Configuration à compléter pendant la Phase 1.
+  config.vm.box = box
+  config.vm.boot_timeout = 600
+
+  # Aucun dossier du projet n'est monté automatiquement dans la VM.
+  # L'administration sera réalisée avec Ansible.
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+
+  config.vm.define node_name, primary: true do |node|
+    node.vm.hostname = hostname
+
+    # La première carte NAT reste gérée automatiquement par Vagrant.
+    # Cette deuxième carte connecte la VM au LAN physique.
+    node.vm.network "public_network",
+                    bridge: bridge_name
+
+    node.vm.provider "virtualbox" do |virtualbox|
+      virtualbox.name = "MGGT-GP4-#{node_name.upcase}"
+      virtualbox.gui = false
+      virtualbox.memory = memory
+      virtualbox.cpus = cpus
+    end
+  end
 end
