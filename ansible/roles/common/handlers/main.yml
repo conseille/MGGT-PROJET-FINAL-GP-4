@@ -1,3 +1,18 @@
 ---
-# Handlers du rôle common.
-[]
+- name: Valider la configuration SSH
+  ansible.builtin.command:
+    cmd: /usr/sbin/sshd -t
+  changed_when: false
+  listen: Recharger SSH
+
+- name: Redémarrer le service SSH
+  ansible.builtin.service:
+    name: "{{ ssh_service_name }}"
+    state: restarted
+  listen: Recharger SSH
+
+- name: Appliquer sysctl
+  ansible.builtin.command:
+    cmd: /sbin/sysctl --system
+  changed_when: true
+  listen: Appliquer les paramètres sysctl

@@ -1,0 +1,15 @@
+# {{ ansible_managed }}
+# Hardening SSH du projet MGGT1103
+
+PermitRootLogin no
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitEmptyPasswords no
+PubkeyAuthentication yes
+UsePAM yes
+
+X11Forwarding no
+MaxAuthTries 3
+LoginGraceTime 30
+ClientAliveInterval 300
+ClientAliveCountMax 2

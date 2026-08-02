@@ -1,3 +1,50 @@
 ---
-# Tâches communes et hardening système.
-[]
+- name: Mettre à jour le cache APT
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Installer les paquets système communs
+  ansible.builtin.apt:
+    name: "{{ common_packages }}"
+    state: present
+
+- name: Vérifier le dossier de configuration SSH
+  ansible.builtin.file:
+    path: /etc/ssh/sshd_config.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Déployer la configuration de hardening SSH
+  ansible.builtin.template:
+    src: 00-mggt-hardening.conf.j2
+    dest: /etc/ssh/sshd_config.d/00-mggt-hardening.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Recharger SSH
+
+- name: Déployer les limites système
+  ansible.builtin.template:
+    src: 99-mggt-limits.conf.j2
+    dest: /etc/security/limits.d/99-mggt-limits.conf
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Déployer les paramètres sysctl
+  ansible.builtin.template:
+    src: 99-mggt-sysctl.conf.j2
+    dest: /etc/sysctl.d/99-mggt-sysctl.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Appliquer les paramètres sysctl
+
+- name: Vérifier que le service SSH est actif
+  ansible.builtin.service:
+    name: "{{ ssh_service_name }}"
+    state: started
+    enabled: true

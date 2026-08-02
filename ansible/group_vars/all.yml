@@ -1,3 +1,13 @@
 ---
-project_name: MGGT-PROJET-FINAL-GP-4
-cluster_name: mggt1103-gp4
+common_packages:
+  - ca-certificates
+  - curl
+  - gnupg
+  - jq
+  - openssh-server
+  - python3-apt
+  - rsync
+  - tar
+  - unzip
+
+ssh_service_name: ssh
