@@ -1,0 +1,6 @@
+---
+- name: Redémarrer K3s
+  ansible.builtin.systemd_service:
+    name: k3s
+    state: restarted
+  failed_when: false

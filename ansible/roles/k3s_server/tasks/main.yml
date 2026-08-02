@@ -1,3 +1,81 @@
 ---
-# Installation automatisée de K3s Server sur le Master.
-[]
+- name: Vérifier l'adresse et l'interface du Master
+  ansible.builtin.assert:
+    that:
+      - k3s_server_ip in ansible_all_ipv4_addresses
+      - k3s_interface in ansible_interfaces
+    fail_msg: >-
+      L'adresse {{ k3s_server_ip }} ou l'interface {{ k3s_interface }}
+      n'est plus présente sur le Master.
+    success_msg: >-
+      Réseau K3s validé : {{ k3s_server_ip }} sur {{ k3s_interface }}.
+
+- name: Créer le groupe des administrateurs K3s
+  ansible.builtin.group:
+    name: "{{ k3s_admin_group }}"
+    state: present
+
+- name: Ajouter les administrateurs au groupe K3s
+  ansible.builtin.user:
+    name: "{{ item }}"
+    groups: "{{ k3s_admin_group }}"
+    append: true
+  loop: "{{ k3s_admin_users }}"
+
+- name: Créer le dossier de configuration K3s
+  ansible.builtin.file:
+    path: /etc/rancher/k3s
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Déployer la configuration sécurisée K3s
+  ansible.builtin.template:
+    src: config.yaml.j2
+    dest: /etc/rancher/k3s/config.yaml
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+  notify: Redémarrer K3s
+
+- name: Télécharger le programme officiel d'installation K3s
+  ansible.builtin.get_url:
+    url: https://get.k3s.io
+    dest: /usr/local/src/install-k3s.sh
+    owner: root
+    group: root
+    mode: "0755"
+    force: false
+
+- name: Installer K3s Server
+  ansible.builtin.command:
+    cmd: /usr/local/src/install-k3s.sh
+    creates: /usr/local/bin/k3s
+  environment:
+    INSTALL_K3S_VERSION: "{{ k3s_version }}"
+    INSTALL_K3S_EXEC: server
+
+- name: Activer et démarrer K3s
+  ansible.builtin.systemd_service:
+    name: k3s
+    state: started
+    enabled: true
+
+- name: Attendre l'API Kubernetes
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: 6443
+    timeout: 240
+
+- name: Attendre que le Master soit Ready
+  ansible.builtin.command:
+    cmd: >-
+      k3s kubectl get node {{ k3s_node_name }}
+      -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+  register: k3s_master_ready
+  changed_when: false
+  retries: 30
+  delay: 5
+  until: k3s_master_ready.stdout == "True"

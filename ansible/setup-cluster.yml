@@ -30,3 +30,8 @@
     - role: docker
       tags:
         - docker
+
+    - role: k3s_server
+      when: inventory_hostname in groups['master']
+      tags:
+        - k3s_server

@@ -1,0 +1,15 @@
+# {{ ansible_managed }}
+
+token: "{{ vault_k3s_token }}"
+
+node-name: "{{ k3s_node_name }}"
+node-ip: "{{ k3s_server_ip }}"
+advertise-address: "{{ k3s_server_ip }}"
+flannel-iface: "{{ k3s_interface }}"
+
+tls-san:
+  - "{{ k3s_server_ip }}"
+  - "{{ k3s_node_name }}"
+
+write-kubeconfig-mode: "0640"
+write-kubeconfig-group: "{{ k3s_admin_group }}"
