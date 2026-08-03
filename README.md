@@ -4,10 +4,32 @@ Projet de Fin de Cours MGGT1103 :
 
 **Conception et Automatisation d'une Plateforme Cloud-Native Distribuée**
 
-## Équipe
+## Équipe — Groupe 4
 
-Groupe 4
+### Ir Albert
 
+- Master ;
+- Ansible ;
+- coordination et intégration du cluster.
+
+### Ir Pascal
+
+- préparation de la machine physique Worker 1 ;
+- création et intégration de `worker1`.
+
+### Ir Tatiana
+
+- préparation de la machine physique Worker 2 ;
+- création et intégration de `worker2`.
+
+### Ir Prescott
+
+- préparation et vérification des outils et environnements ;
+- VirtualBox et Vagrant ;
+- WSL 2 et Ubuntu ;
+- Git, Python, Ansible et SSH.
+
+La répartition pourra évoluer, car le projet reste un travail collectif.
 ## Objectif
 
 Construire un cluster K3s distribué composé de trois machines
