@@ -64,12 +64,14 @@
     enabled: true
 
 - name: Attendre l'API Kubernetes
+  when: not ansible_check_mode
   ansible.builtin.wait_for:
     host: 127.0.0.1
     port: 6443
     timeout: 240
 
 - name: Attendre que le Master soit Ready
+  when: not ansible_check_mode
   ansible.builtin.command:
     cmd: >-
       k3s kubectl get node {{ k3s_node_name }}
@@ -79,3 +81,61 @@
   retries: 30
   delay: 5
   until: k3s_master_ready.stdout == "True"
+
+- name: Créer le dossier kubeconfig de l'administrateur
+  ansible.builtin.file:
+    path: "{{ k3s_kubeconfig_home }}/.kube"
+    state: directory
+    owner: "{{ k3s_kubeconfig_user }}"
+    group: "{{ k3s_kubeconfig_group }}"
+    mode: "0700"
+
+- name: Lire le kubeconfig système
+  ansible.builtin.slurp:
+    src: /etc/rancher/k3s/k3s.yaml
+  register: k3s_system_kubeconfig
+  no_log: true
+
+- name: Installer le kubeconfig de l'administrateur
+  ansible.builtin.copy:
+    content: >-
+      {{
+        (k3s_system_kubeconfig.content | b64decode)
+        | regex_replace(
+            'https://127[.]0[.]0[.]1:6443',
+            'https://' ~ k3s_server_ip ~ ':6443'
+          )
+      }}
+    dest: "{{ k3s_kubeconfig_home }}/.kube/config"
+    owner: "{{ k3s_kubeconfig_user }}"
+    group: "{{ k3s_kubeconfig_group }}"
+    mode: "0600"
+  no_log: true
+
+- name: Attendre que CoreDNS soit disponible
+  when: not ansible_check_mode
+  ansible.builtin.command:
+    cmd: >-
+      k3s kubectl --kubeconfig /etc/rancher/k3s/k3s.yaml
+      rollout status deployment/coredns
+      --namespace kube-system
+      --timeout=15s
+  register: k3s_coredns_status
+  changed_when: false
+  retries: 20
+  delay: 10
+  until: k3s_coredns_status.rc == 0
+
+- name: Attendre que Traefik soit disponible
+  when: not ansible_check_mode
+  ansible.builtin.command:
+    cmd: >-
+      k3s kubectl --kubeconfig /etc/rancher/k3s/k3s.yaml
+      rollout status deployment/traefik
+      --namespace kube-system
+      --timeout=15s
+  register: k3s_traefik_status
+  changed_when: false
+  retries: 20
+  delay: 10
+  until: k3s_traefik_status.rc == 0

@@ -1,0 +1,4 @@
+---
+k3s_node_name: master
+k3s_server_ip: "{{ ansible_host }}"
+k3s_interface: eth1
