@@ -35,3 +35,8 @@
       when: inventory_hostname in groups['master']
       tags:
         - k3s_server
+
+    - role: k3s_agent
+      when: inventory_hostname in groups['workers']
+      tags:
+        - k3s_agent

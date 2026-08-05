@@ -1,3 +1,90 @@
 ---
-# Installation automatisée de K3s Agent sur les Workers.
-[]
+- name: Vérifier les variables obligatoires de l'agent
+  ansible.builtin.assert:
+    that:
+      - groups['master'] | length == 1
+      - k3s_server_url | length > 0
+      - k3s_node_name | length > 0
+      - k3s_node_ip | length > 0
+      - vault_k3s_token is defined
+      - vault_k3s_token | length > 0
+    fail_msg: Configuration K3s Agent incomplète.
+  no_log: true
+
+- name: Lire la version K3s installée sur le Master
+  ansible.builtin.command:
+    cmd: /usr/local/bin/k3s --version
+  delegate_to: "{{ groups['master'][0] }}"
+  become: false
+  changed_when: false
+  register: k3s_master_version_command
+
+- name: Déterminer la version exacte à installer
+  ansible.builtin.set_fact:
+    k3s_agent_version: "{{ k3s_master_version_command.stdout.split()[2] }}"
+
+- name: Afficher la version K3s sélectionnée
+  ansible.builtin.debug:
+    msg: "Version K3s Agent : {{ k3s_agent_version }}"
+
+- name: Créer les répertoires K3s
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop:
+    - path: /etc/rancher/k3s
+      mode: "0755"
+    - path: /usr/local/src
+      mode: "0755"
+
+- name: Déployer la configuration de l'agent
+  ansible.builtin.template:
+    src: config.yaml.j2
+    dest: /etc/rancher/k3s/config.yaml
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+  notify: Redémarrer k3s-agent
+
+- name: Télécharger le programme officiel d'installation K3s
+  ansible.builtin.get_url:
+    url: "{{ k3s_install_script_url }}"
+    dest: "{{ k3s_install_script_path }}"
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Installer K3s Agent avec la version du Master
+  ansible.builtin.command:
+    cmd: "{{ k3s_install_script_path }}"
+    creates: /etc/systemd/system/k3s-agent.service
+  environment:
+    INSTALL_K3S_VERSION: "{{ k3s_agent_version }}"
+    INSTALL_K3S_EXEC: agent
+
+- name: Activer et démarrer K3s Agent
+  ansible.builtin.systemd:
+    name: k3s-agent
+    state: started
+    enabled: true
+    daemon_reload: true
+
+- name: Appliquer immédiatement les handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Vérifier le service K3s Agent
+  ansible.builtin.command:
+    cmd: systemctl is-active k3s-agent
+  changed_when: false
+  register: k3s_agent_service
+
+- name: Confirmer le fonctionnement de K3s Agent
+  ansible.builtin.assert:
+    that:
+      - k3s_agent_service.stdout == "active"
+    fail_msg: Le service k3s-agent n'est pas actif.
+    success_msg: Le service k3s-agent est actif.

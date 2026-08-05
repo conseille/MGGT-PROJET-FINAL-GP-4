@@ -1,2 +1,4 @@
 ---
-{}
+k3s_server_url: "https://{{ hostvars[groups['master'][0]].ansible_host }}:6443"
+k3s_node_ip: "{{ ansible_host }}"
+k3s_interface: eth1
