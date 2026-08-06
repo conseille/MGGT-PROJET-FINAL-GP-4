@@ -1,0 +1,49 @@
+[
+  {
+    "id": "tab-smartcity",
+    "type": "tab",
+    "label": "Smart City - Groupe 4",
+    "disabled": false,
+    "info": "Démonstration Node-RED du projet MGGT1103."
+  },
+  {
+    "id": "http-smartcity",
+    "type": "http in",
+    "z": "tab-smartcity",
+    "name": "État Smart City",
+    "url": "/smart-city",
+    "method": "get",
+    "upload": false,
+    "swaggerDoc": "",
+    "x": 170,
+    "y": 100,
+    "wires": [["function-status"]]
+  },
+  {
+    "id": "function-status",
+    "type": "function",
+    "z": "tab-smartcity",
+    "name": "Réponse JSON",
+    "func": "msg.headers = {\"content-type\":\"application/json; charset=utf-8\"};\nmsg.payload = {\n  projet: \"MGGT1103 - Groupe 4\",\n  plateforme: \"Smart City\",\n  service: \"Node-RED\",\n  etat: \"operationnel\",\n  capteur: { type: \"temperature\", valeur: 24, unite: \"C\" },\n  horodatage: new Date().toISOString()\n};\nreturn msg;",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 390,
+    "y": 100,
+    "wires": [["http-response"]]
+  },
+  {
+    "id": "http-response",
+    "type": "http response",
+    "z": "tab-smartcity",
+    "name": "Réponse HTTP",
+    "statusCode": "",
+    "headers": {},
+    "x": 620,
+    "y": 100,
+    "wires": []
+  }
+]

@@ -1,0 +1,37 @@
+services:
+  mosquitto:
+    build:
+      context: ./app2
+    image: mggt-gp4/mosquitto-smartcity:local
+    container_name: mggt-mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - mosquitto-data:/mosquitto/data
+
+  nodered:
+    build:
+      context: ./app1
+    image: mggt-gp4/nodered-smartcity:local
+    container_name: mggt-nodered
+    restart: unless-stopped
+    depends_on:
+      - mosquitto
+    ports:
+      - "1880:1880"
+
+  mqtt-web:
+    build:
+      context: ./app2/web
+    image: mggt-gp4/mqtt-web-smartcity:local
+    container_name: mggt-mqtt-web
+    restart: unless-stopped
+    depends_on:
+      - mosquitto
+    ports:
+      - "8088:80"
+
+volumes:
+  mosquitto-data:
