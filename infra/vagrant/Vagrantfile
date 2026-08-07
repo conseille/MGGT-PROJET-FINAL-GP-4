@@ -80,7 +80,13 @@ Vagrant.configure("2") do |config|
     # La première carte NAT reste gérée automatiquement par Vagrant.
     # Cette deuxième carte connecte la VM au LAN physique.
     node.vm.network "public_network",
-                    bridge: bridge_name
+                    bridge: bridge_name,
+                    auto_config: false
+
+    node.vm.provision "shell",
+                      name: "MRNF network bootstrap",
+                      path: "scripts/mrnf-network-bootstrap.sh",
+                      run: "always"
 
     node.vm.provider "virtualbox" do |virtualbox|
       virtualbox.name = "MGGT-GP4-#{node_name.upcase}"
