@@ -1,14 +1,44 @@
 ---
-- name: Vérifier l'adresse et l'interface du Master
+- name: Vérifier l'interface K3s du Master
+  ansible.builtin.assert:
+    that:
+      - k3s_interface is defined
+      - k3s_interface | length > 0
+      - k3s_interface in ansible_interfaces
+    fail_msg: >-
+      L'interface K3s {{ k3s_interface | default('NON_DEFINIE') }}
+      n'est pas présente sur le Master.
+
+- name: Lire l'adresse IPv4 courante de l'interface K3s
+  ansible.builtin.command:
+    cmd: "ip -4 -o addr show dev {{ k3s_interface }} scope global"
+  register: k3s_interface_ipv4
+  changed_when: false
+  check_mode: false
+
+- name: Vérifier qu'une IPv4 LAN est disponible
+  ansible.builtin.assert:
+    that:
+      - k3s_interface_ipv4.stdout | trim | length > 0
+    fail_msg: >-
+      Aucune adresse IPv4 n'est disponible sur {{ k3s_interface }}.
+      K3s ne sera pas configuré avec une adresse obsolète.
+
+- name: Déterminer dynamiquement l'adresse IPv4 K3s
+  ansible.builtin.set_fact:
+    k3s_server_ip: >-
+      {{ k3s_interface_ipv4.stdout.split()[3].split('/')[0] }}
+
+- name: Valider l'adresse IPv4 K3s découverte
   ansible.builtin.assert:
     that:
       - k3s_server_ip in ansible_all_ipv4_addresses
-      - k3s_interface in ansible_interfaces
     fail_msg: >-
-      L'adresse {{ k3s_server_ip }} ou l'interface {{ k3s_interface }}
-      n'est plus présente sur le Master.
+      L'adresse découverte {{ k3s_server_ip }} n'est pas présente
+      sur le Master.
     success_msg: >-
-      Réseau K3s validé : {{ k3s_server_ip }} sur {{ k3s_interface }}.
+      Réseau K3s dynamique validé :
+      {{ k3s_server_ip }} sur {{ k3s_interface }}.
 
 - name: Créer le groupe des administrateurs K3s
   ansible.builtin.group:
@@ -62,6 +92,9 @@
     name: k3s
     state: started
     enabled: true
+
+- name: Appliquer immédiatement les handlers K3s
+  ansible.builtin.meta: flush_handlers
 
 - name: Attendre l'API Kubernetes
   when: not ansible_check_mode
