@@ -13,59 +13,64 @@ fail() {
   exit 1
 }
 
-[ "$(id -u)" -eq 0 ] || fail "ce script doit être exécuté en root"
+[ "$(id -u)" -eq 0 ] || fail "ce bootstrap doit être exécuté en root"
+command -v networkctl >/dev/null 2>&1 || fail "systemd-networkd indisponible"
+command -v netplan >/dev/null 2>&1 || fail "netplan indisponible"
 
-systemctl is-active --quiet systemd-networkd \
-  || fail "systemd-networkd n'est pas actif"
+NODE_NAME="$(hostname -s)"
 
-for iface in eth0 eth1; do
-  [ -r "/sys/class/net/${iface}/address" ] \
-    || fail "interface ${iface} introuvable"
-done
+case "${NODE_NAME}" in
+  master)
+    FABRIC_IP="10.44.0.10"
+    ;;
+  worker1)
+    FABRIC_IP="10.44.0.20"
+    ;;
+  worker2)
+    FABRIC_IP="10.44.0.30"
+    ;;
+  *)
+    fail "hostname non reconnu pour la Fabric MRNF: ${NODE_NAME}"
+    ;;
+esac
+
+[ -e /sys/class/net/eth0 ] || fail "eth0 absente"
+[ -e /sys/class/net/eth1 ] || fail "eth1 absente"
 
 NAT_MAC="$(cat /sys/class/net/eth0/address)"
 LAN_MAC="$(cat /sys/class/net/eth1/address)"
 
-install -d -m 0755 \
-  "${NETPLAN_DIR}" \
-  "${STATE_DIR}" \
-  "${BACKUP_DIR}" \
-  /etc/cloud/cloud.cfg.d
+mkdir -p "${STATE_DIR}" "${BACKUP_DIR}"
 
-# Sauvegarde unique des configurations présentes avant adoption MRNF.
+# Conserver une copie unique de la configuration reçue avant adoption MRNF.
 if [ ! -e "${MARKER}" ]; then
-  for file in "${NETPLAN_DIR}"/*.yaml; do
-    [ -e "${file}" ] || continue
-    [ "$(basename "${file}")" = "$(basename "${MRNF_NETPLAN}")" ] && continue
-    cp -a "${file}" "${BACKUP_DIR}/"
-  done
-
+  cp -a "${NETPLAN_DIR}/." "${BACKUP_DIR}/"
   touch "${MARKER}"
 fi
 
-# Cloud-init ne doit plus recréer une configuration réseau concurrente.
-cat > "${CLOUD_CFG}" <<'CFG'
-network: {config: disabled}
-CFG
-chmod 0644 "${CLOUD_CFG}"
+# Empêcher cloud-init de recréer une autorité réseau concurrente.
+mkdir -p "$(dirname "${CLOUD_CFG}")"
+printf '%s\n' 'network: {config: disabled}' > "${CLOUD_CFG}"
 
-# Refuser toute configuration Netplan inconnue plutôt que la supprimer.
-UNEXPECTED="$(
-  find "${NETPLAN_DIR}" -maxdepth 1 -type f -name '*.yaml' \
-    ! -name '01-netcfg.yaml' \
-    ! -name '50-cloud-init.yaml' \
-    ! -name '50-vagrant.yaml' \
-    ! -name "$(basename "${MRNF_NETPLAN}")" \
-    -print
-)"
+# Refuser de supprimer silencieusement une configuration inconnue.
+UNEXPECTED=""
+for FILE in "${NETPLAN_DIR}"/*.yaml; do
+  [ -e "${FILE}" ] || continue
+  BASE="$(basename "${FILE}")"
 
-if [ -n "${UNEXPECTED}" ]; then
-  echo "MRNF ERROR: configuration Netplan inattendue détectée :" >&2
-  echo "${UNEXPECTED}" >&2
-  exit 1
-fi
+  case "${BASE}" in
+    01-netcfg.yaml|50-cloud-init.yaml|50-vagrant.yaml|60-mggt-mrnf.yaml)
+      ;;
+    *)
+      UNEXPECTED="${UNEXPECTED} ${BASE}"
+      ;;
+  esac
+done
 
-# Retirer uniquement les configurations concurrentes connues.
+[ -z "${UNEXPECTED}" ] || \
+  fail "configuration Netplan inconnue détectée:${UNEXPECTED}"
+
+# Supprimer uniquement les anciennes autorités connues.
 rm -f \
   "${NETPLAN_DIR}/01-netcfg.yaml" \
   "${NETPLAN_DIR}/50-cloud-init.yaml" \
@@ -75,6 +80,7 @@ cat > "${MRNF_NETPLAN}" <<EOF_NETPLAN
 network:
   version: 2
   renderer: networkd
+
   ethernets:
     nat0:
       match:
@@ -88,11 +94,15 @@ network:
       match:
         macaddress: "${LAN_MAC}"
       set-name: eth1
-      dhcp4: true
+
+      # MRNF Fabric:
+      # l'identité du cluster ne dépend plus du DHCP du LAN physique.
+      addresses:
+        - "${FABRIC_IP}/24"
+
+      dhcp4: false
       accept-ra: false
-      dhcp4-overrides:
-        use-routes: false
-        use-dns: false
+      link-local: []
       optional: true
 EOF_NETPLAN
 
@@ -100,27 +110,59 @@ chmod 0600 "${MRNF_NETPLAN}"
 
 netplan generate
 
-# IMPORTANT :
-# ne pas reconfigurer eth0 pendant que Vagrant utilise SSH via NAT.
+# Ne jamais réappliquer globalement le réseau :
+# eth0 transporte la session Vagrant/SSH.
 networkctl reload
-networkctl reconfigure eth1
+networkctl reconfigure eth1 || true
 
-sleep 3
+# Une reconfiguration ciblée supplémentaire est autorisée sur eth1
+# uniquement si l'adresse Fabric n'est pas encore présente.
+if ! ip -4 -o addr show dev eth1 |
+     awk '{print $4}' |
+     grep -Fxq "${FABRIC_IP}/24"; then
 
-echo "===== MRNF RESULT ====="
-ip -br -4 addr
-ip -4 route
-
-DEFAULT_ROUTES="$(ip -4 route show default)"
-
-echo "${DEFAULT_ROUTES}" | grep -Eq ' dev eth0( |$)' \
-  || fail "eth0 ne possède pas la route IPv4 par défaut"
-
-if echo "${DEFAULT_ROUTES}" | grep -Eq ' dev eth1( |$)'; then
-  fail "eth1 possède encore une route IPv4 par défaut"
+  networkctl down eth1 || true
+  sleep 1
+  networkctl up eth1 || true
 fi
 
-ip -4 -o addr show dev eth1 scope global | grep -q 'inet ' \
-  || fail "eth1 n'a pas obtenu d'adresse IPv4 LAN"
+TRIES=0
+while [ "${TRIES}" -lt 10 ]; do
+  if ip -4 -o addr show dev eth1 |
+     awk '{print $4}' |
+     grep -Fxq "${FABRIC_IP}/24"; then
+    break
+  fi
 
+  TRIES=$((TRIES + 1))
+  sleep 1
+done
+
+ip -4 -o addr show dev eth1 |
+  awk '{print $4}' |
+  grep -Fxq "${FABRIC_IP}/24" ||
+  fail "adresse Fabric ${FABRIC_IP}/24 absente de eth1"
+
+DEFAULT_ROUTES="$(ip -4 route show default)"
+DEFAULT_COUNT="$(printf '%s\n' "${DEFAULT_ROUTES}" |
+  sed '/^[[:space:]]*$/d' |
+  wc -l)"
+
+[ "${DEFAULT_COUNT}" -eq 1 ] ||
+  fail "nombre de routes par défaut IPv4 incorrect: ${DEFAULT_COUNT}"
+
+printf '%s\n' "${DEFAULT_ROUTES}" |
+  grep -q ' dev eth0 ' ||
+  fail "la route par défaut n'utilise pas eth0"
+
+if ip -4 route show default dev eth1 | grep -q .; then
+  fail "eth1 possède encore une route par défaut"
+fi
+
+echo "===== MRNF v2 RESULT ====="
+echo "MRNF_NODE=${NODE_NAME}"
+echo "MRNF_FABRIC_IP=${FABRIC_IP}"
+ip -br -4 addr
+ip -4 route
+echo "MRNF_DHCP_DEPENDENCY=NONE"
 echo "MRNF_OK=YES"
