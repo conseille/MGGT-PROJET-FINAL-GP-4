@@ -1,0 +1,122 @@
+name: MGGT1103 - CI/CD DevSecOps
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cicd-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hadolint:
+    name: Hadolint - ${{ matrix.name }}
+    runs-on: ubuntu-24.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Node-RED
+            dockerfile: app/app1/Dockerfile
+
+          - name: Mosquitto
+            dockerfile: app/app2/Dockerfile
+
+          - name: Mosquitto-Web
+            dockerfile: app/app2/web/Dockerfile
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Analyser le Dockerfile avec Hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: ${{ matrix.dockerfile }}
+          failure-threshold: error
+
+  build-scan-publish:
+    name: Build + Trivy + Docker Hub - ${{ matrix.name }}
+    runs-on: ubuntu-24.04
+    needs: hadolint
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Node-RED
+            context: app/app1
+            dockerfile: app/app1/Dockerfile
+            repository: mggt-smartcity-nodered
+
+          - name: Mosquitto
+            context: app/app2
+            dockerfile: app/app2/Dockerfile
+            repository: mggt-smartcity-mosquitto
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Préparer les variables d'image
+        shell: bash
+        run: |
+          echo "LOCAL_IMAGE=mggt-ci-${{ matrix.repository }}:${GITHUB_SHA}" >> "$GITHUB_ENV"
+
+      - name: Compiler l'image Docker
+        shell: bash
+        run: |
+          docker build \
+            --file "${{ matrix.dockerfile }}" \
+            --tag "${LOCAL_IMAGE}" \
+            "${{ matrix.context }}"
+
+      - name: Scanner l'image avec Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.LOCAL_IMAGE }}
+          scan-type: image
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          scanners: vuln
+
+      - name: Connexion à Docker Hub
+        if: github.event_name == 'push'
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Publier l'image saine sur Docker Hub
+        if: github.event_name == 'push'
+        shell: bash
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+        run: |
+          SHA_IMAGE="${DOCKERHUB_USERNAME}/${{ matrix.repository }}:${GITHUB_SHA}"
+
+          docker tag "${LOCAL_IMAGE}" "${SHA_IMAGE}"
+          docker push "${SHA_IMAGE}"
+
+          echo "### ${{ matrix.name }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Hadolint : réussi" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Build Docker : réussi" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Trivy HIGH/CRITICAL : réussi" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Docker Hub : \`${SHA_IMAGE}\`" >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
+            LATEST_IMAGE="${DOCKERHUB_USERNAME}/${{ matrix.repository }}:latest"
+
+            docker tag "${LOCAL_IMAGE}" "${LATEST_IMAGE}"
+            docker push "${LATEST_IMAGE}"
+
+            echo "- Tag stable : \`${LATEST_IMAGE}\`" >> "$GITHUB_STEP_SUMMARY"
+          fi
