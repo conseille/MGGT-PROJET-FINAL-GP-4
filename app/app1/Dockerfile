@@ -1,5 +1,5 @@
 # hadolint ignore=DL3007
-FROM nodered/node-red:latest
+FROM nodered/node-red:5.0.1-minimal
 
 USER root
 COPY --chown=node-red:node-red settings.js /data/settings.js
