@@ -1,0 +1,222 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: keycloak-sso-bootstrap
+  namespace: mggt-smartcity
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app: keycloak-sso-bootstrap
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: bootstrap
+          image: quay.io/keycloak/keycloak:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/bash
+            - -ec
+            - |
+              KC=/opt/keycloak/bin/kcadm.sh
+
+              "$KC" config credentials \
+                --server http://keycloak:8080 \
+                --realm master \
+                --user "$KC_ADMIN_USERNAME" \
+                --password "$KC_ADMIN_PASSWORD"
+
+              if ! "$KC" get realms/mggt-smartcity >/dev/null 2>&1; then
+                "$KC" create realms \
+                  -s realm=mggt-smartcity \
+                  -s enabled=true \
+                  -s sslRequired=none \
+                  -s 'displayName=MGGT1103 - Groupe 4'
+              fi
+
+              CLIENT_ID="$("$KC" get clients \
+                -r mggt-smartcity \
+                -q clientId=mggt-sso \
+                --fields id \
+                --format csv \
+                --noquotes 2>/dev/null | tail -n 1)"
+
+              if [ -z "$CLIENT_ID" ]; then
+                "$KC" create clients -r mggt-smartcity \
+                  -s clientId=mggt-sso \
+                  -s enabled=true \
+                  -s protocol=openid-connect \
+                  -s publicClient=false \
+                  -s standardFlowEnabled=true \
+                  -s directAccessGrantsEnabled=false \
+                  -s serviceAccountsEnabled=false \
+                  -s secret="$SSO_CLIENT_SECRET" \
+                  -s 'redirectUris=["http://sso.projet.local:8080/oauth2/callback"]' \
+                  -s 'webOrigins=["http://app1.projet.local:8080","http://app2.projet.local:8080","http://sso.projet.local:8080"]'
+              else
+                "$KC" update clients/"$CLIENT_ID" -r mggt-smartcity \
+                  -s enabled=true \
+                  -s publicClient=false \
+                  -s standardFlowEnabled=true \
+                  -s secret="$SSO_CLIENT_SECRET" \
+                  -s 'redirectUris=["http://sso.projet.local:8080/oauth2/callback"]' \
+                  -s 'webOrigins=["http://app1.projet.local:8080","http://app2.projet.local:8080","http://sso.projet.local:8080"]'
+              fi
+
+              USER_ID="$("$KC" get users -r mggt-smartcity -q username="$SSO_USERNAME" --fields id --format csv --noquotes 2>/dev/null | tail -n 1)"
+
+              if [ -z "$USER_ID" ]; then
+                "$KC" create users -r mggt-smartcity                   -s username="$SSO_USERNAME"                   -s email="$SSO_EMAIL"                   -s emailVerified=true                   -s enabled=true
+              fi
+
+              "$KC" set-password -r mggt-smartcity                 --username "$SSO_USERNAME"                 --new-password "$SSO_PASSWORD"
+
+              echo "SSO_REALM_CLIENT_USER_OK"
+          env:
+            - name: KC_ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-admin
+                  key: username
+            - name: KC_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-admin
+                  key: password
+            - name: SSO_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: sso-credentials
+                  key: client-secret
+            - name: SSO_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: sso-user
+                  key: username
+            - name: SSO_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: sso-user
+                  key: password
+            - name: SSO_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: sso-user
+                  key: email
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oauth2-proxy
+  namespace: mggt-smartcity
+  labels:
+    app: oauth2-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: oauth2-proxy
+  template:
+    metadata:
+      labels:
+        app: oauth2-proxy
+    spec:
+      containers:
+        - name: oauth2-proxy
+          image: quay.io/oauth2-proxy/oauth2-proxy:v7.15.3
+          args:
+            - --provider=oidc
+            - --client-id=mggt-sso
+            - --oidc-issuer-url=http://auth.projet.local:8080/realms/mggt-smartcity
+            - --skip-oidc-discovery=true
+            - --login-url=http://auth.projet.local:8080/realms/mggt-smartcity/protocol/openid-connect/auth
+            - --redeem-url=http://keycloak:8080/realms/mggt-smartcity/protocol/openid-connect/token
+            - --oidc-jwks-url=http://keycloak:8080/realms/mggt-smartcity/protocol/openid-connect/certs
+            - --profile-url=http://keycloak:8080/realms/mggt-smartcity/protocol/openid-connect/userinfo
+            - --redirect-url=http://sso.projet.local:8080/oauth2/callback
+            - --email-domain=*
+            - --cookie-domain=.projet.local
+            - --cookie-name=_mggt_sso
+            - --cookie-secure=false
+            - --cookie-samesite=lax
+            - --whitelist-domain=.projet.local
+            - --whitelist-domain=.projet.local:8080
+            - --reverse-proxy=true
+            - --set-xauthrequest=true
+            - --skip-provider-button=true
+            - --upstream=static://202
+            - --http-address=0.0.0.0:4180
+          env:
+            - name: OAUTH2_PROXY_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: sso-credentials
+                  key: client-secret
+            - name: OAUTH2_PROXY_COOKIE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: sso-credentials
+                  key: cookie-secret
+          ports:
+            - name: http
+              containerPort: 4180
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: oauth2-proxy
+  namespace: mggt-smartcity
+spec:
+  selector:
+    app: oauth2-proxy
+  ports:
+    - name: http
+      port: 4180
+      targetPort: http
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: sso-forward-auth
+  namespace: mggt-smartcity
+spec:
+  forwardAuth:
+    address: http://oauth2-proxy.mggt-smartcity.svc.cluster.local:4180/
+    trustForwardHeader: true
+    authResponseHeaders:
+      - X-Auth-Request-User
+      - X-Auth-Request-Email
+      - Authorization
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: oauth2-proxy
+  namespace: mggt-smartcity
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: sso.projet.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: oauth2-proxy
+                port:
+                  number: 4180

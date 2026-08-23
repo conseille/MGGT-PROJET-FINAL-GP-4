@@ -3,6 +3,8 @@ kind: Ingress
 metadata:
   name: smartcity-apps
   namespace: mggt-smartcity
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: mggt-smartcity-sso-forward-auth@kubernetescrd
 spec:
   ingressClassName: traefik
   rules:

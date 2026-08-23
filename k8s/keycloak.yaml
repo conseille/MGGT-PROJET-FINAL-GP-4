@@ -24,6 +24,7 @@ spec:
             - --proxy-headers=xforwarded
             - --hostname-strict=false
             - --http-enabled=true
+            - --hostname=http://auth.projet.local:8080
           env:
             - name: KC_BOOTSTRAP_ADMIN_USERNAME
               valueFrom:
