@@ -3,17 +3,73 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Smart City MQTT - Groupe 4</title>
+  <title>Smart City IoT - MGGT1103 - Groupe 4</title>
   <style>
     body { font-family: system-ui, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
     section { border: 1px solid #aaa; border-radius: 12px; padding: 1rem; margin-bottom: 1rem; }
     input, button { padding: .65rem; margin: .2rem; }
     pre { min-height: 10rem; white-space: pre-wrap; background: #111; color: #eee; padding: 1rem; }
   </style>
+<style id="mggt-personnalisation">
+  :root {
+    font-family: Arial, Helvetica, sans-serif;
+  }
+
+  body {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 32px;
+    background: #f7f8fa;
+  }
+
+  h1 {
+    margin-bottom: 8px;
+    font-size: 2.2rem;
+  }
+
+  .mggt-subtitle {
+    font-size: 1.05rem;
+    margin-bottom: 28px;
+  }
+
+  #topic {
+    min-width: 390px;
+  }
+
+  #message {
+    min-width: 390px;
+  }
+
+  input {
+    padding: 12px;
+    margin: 6px;
+    border: 1px solid #aaa;
+    border-radius: 6px;
+    font-size: 1rem;
+  }
+
+  button {
+    padding: 12px 20px;
+    margin: 6px;
+    cursor: pointer;
+    border-radius: 6px;
+    border: 1px solid #888;
+    font-weight: 600;
+  }
+
+  #log {
+    min-height: 260px;
+    padding: 20px;
+    margin-top: 24px;
+    border-radius: 8px;
+    overflow: auto;
+    line-height: 1.45;
+  }
+</style>
 </head>
 <body>
-  <h1>Smart City MQTT - Groupe 4</h1>
-  <p>Interface de démonstration Eclipse Mosquitto via WebSocket.</p>
+  <h1>Smart City IoT - MGGT1103 - Groupe 4</h1>
+  <p>Université Espoir d’Afrique — Plateforme Smart City IoT — Eclipse Mosquitto sur Kubernetes.</p>
 
   <section>
     <label>Hôte <input id="host" value="192.168.1.122"></label>
