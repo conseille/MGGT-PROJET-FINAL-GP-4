@@ -22,13 +22,6 @@ spec:
     - host: app2.projet.local
       http:
         paths:
-          - path: /mqtt
-            pathType: Prefix
-            backend:
-              service:
-                name: app2-mqtt
-                port:
-                  number: 9001
           - path: /
             pathType: Prefix
             backend:

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Smart City IoT - MGGT1103 - Groupe 4</title>
+  <title>Smart City IoT Console - Groupe 4</title>
   <style>
     body { font-family: system-ui, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
     section { border: 1px solid #aaa; border-radius: 12px; padding: 1rem; margin-bottom: 1rem; }
@@ -68,23 +68,15 @@
 </style>
 </head>
 <body>
-  <h1>Smart City IoT - MGGT1103 - Groupe 4</h1>
-  <p>Université Espoir d’Afrique — Plateforme Smart City IoT — Eclipse Mosquitto sur Kubernetes.</p>
-
-  <section>
-    <label>Hôte <input id="host" value="192.168.1.122"></label>
-    <label>Port <input id="port" value="9001"></label>
-    <button id="connect">Connecter</button>
-  </section>
-
+  <h1>Smart City IoT Console - Groupe 4</h1>
+  <p><strong>MGGT1103 • SMART CITY PLATFORM • GROUPE 4</strong><br>Messagerie MQTT & télémétrie — Eclipse Mosquitto sur Kubernetes.</p>
   <section>
     <label>Sujet <input id="topic" value="smartcity/capteurs/temperature"></label>
     <label>Message <input id="message" value='{"site":"campus","valeur":24,"unite":"C"}'></label>
+    <button id="connect">Connecter</button>
     <button id="publish">Publier</button>
   </section>
-
   <pre id="log">Prêt.</pre>
-
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <script>
     let client;
@@ -94,19 +86,16 @@
     };
 
     document.getElementById("connect").onclick = () => {
-      const host = document.getElementById("host").value;
-      const port = document.getElementById("port").value;
-      const topic = document.getElementById("topic").value;
-
-      client = mqtt.connect(`ws://${host}:${port}`);
+      const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+      client = mqtt.connect(`${protocol}://${window.location.host}/mqtt`);
 
       client.on("connect", () => {
         write("Connecté au broker.");
-        client.subscribe(topic);
+        client.subscribe(document.getElementById("topic").value);
       });
 
-      client.on("message", (receivedTopic, payload) => {
-        write(`${receivedTopic}: ${payload.toString()}`);
+      client.on("message", (topic, payload) => {
+        write(`${topic}: ${payload.toString()}`);
       });
 
       client.on("error", (error) => write(`Erreur: ${error.message}`));

@@ -1,78 +1,58 @@
-# MGGT-PROJET-FINAL-GP-4
+# MGGT1103 — Conception et Automatisation d’une Plateforme Cloud-Native Distribuée
 
-Projet de Fin de Cours MGGT1103 :
+Projet final réalisé à l’**Université Espoir d’Afrique** dans le cadre du cours **MGGT1103**.
 
-**Conception et Automatisation d'une Plateforme Cloud-Native Distribuée**
+Le projet consiste en la conception et l’automatisation d’une plateforme **Cloud-Native distribuée Smart City / IoT**, déployée sur trois machines physiques participant à un cluster Kubernetes K3s.
 
 ## Équipe — Groupe 4
 
-### Ir Albert
+- **MUPINI KABWE ALBERT**
+- **NGOMBE BIN KUMWIMBA PRESCOTT**
+- **MWIMBA PASCAL ALPHANI**
+- **TATIANE MUNYALI WANY**
 
-- Master ;
-- Ansible ;
-- coordination et intégration du cluster.
+## Architecture
 
-### Ir Pascal
+La plateforme repose sur trois machines virtuelles Ubuntu distribuées sur trois ordinateurs physiques :
 
-- préparation de la machine physique Worker 1 ;
-- création et intégration de `worker1`.
+**Master K3s + Worker 1 + Worker 2**
 
-### Ir Tatiana
+L’infrastructure et les services sont automatisés et déployés selon les principes **Infrastructure as Code**, **Cloud-Native** et **DevSecOps**.
 
-- préparation de la machine physique Worker 2 ;
-- création et intégration de `worker2`.
+## Applications
 
-### Ir Prescott
+### App1 — Smart City Operations
+Application basée sur **Node-RED** pour l’automatisation, le traitement des flux et les services Smart City.
 
-- préparation et vérification des outils et environnements ;
-- VirtualBox et Vagrant ;
-- WSL 2 et Ubuntu ;
-- Git, Python, Ansible et SSH.
+### App2 — Smart City IoT Console
+Interface IoT basée sur **Eclipse Mosquitto / MQTT** pour la publication, la réception et la visualisation de données de télémétrie.
 
-La répartition pourra évoluer, car le projet reste un travail collectif.
-## Objectif
+## Technologies principales
 
-Construire un cluster K3s distribué composé de trois machines
-virtuelles réparties sur trois ordinateurs physiques.
+`Vagrant` • `Ansible` • `Docker` • `K3s` • `Kubernetes` • `Traefik` • `Node-RED` • `Eclipse Mosquitto` • `MQTT` • `Keycloak` • `OAuth2 Proxy` • `GitHub Actions` • `Hadolint` • `Trivy` • `Docker Hub` • `Prometheus` • `Grafana` • `Loki` • `Promtail`
 
-## Séparation des environnements
+## Fonctionnalités validées
 
-### Windows PowerShell
+- Infrastructure distribuée et automatisée
+- Cluster K3s à trois nœuds
+- Déploiement et réplication des applications
+- Haute disponibilité et résilience
+- Authentification centralisée avec Keycloak
+- SSO réel entre App1 et App2
+- Observabilité des nœuds et des applications
+- Centralisation des logs
+- Pipeline CI/CD DevSecOps
+- Analyse Hadolint et Trivy
+- Publication des images sur Docker Hub
 
-- VirtualBox
-- Vagrant
-- création et démarrage des machines virtuelles
+## Sécurité et DevSecOps
 
-### Ubuntu WSL
+Les informations sensibles ne sont pas stockées en clair dans le dépôt. La plateforme utilise notamment les mécanismes de secrets Kubernetes, les secrets GitHub Actions et l’authentification centralisée.
 
-- Git
-- Ansible
-- Ansible Vault
-- contrôle et automatisation de l'infrastructure
-- préparation des fichiers Docker et Kubernetes
+## Mots-clés
 
-### Machines virtuelles Ubuntu
+**Cloud-Native · Kubernetes · K3s · Infrastructure as Code · DevSecOps · CI/CD · SSO · Keycloak · Observabilité · Smart City · IoT · MQTT · Résilience**
 
-- Master K3s
-- Worker 1
-- Worker 2
+---
 
-Les machines virtuelles ne doivent pas être configurées manuellement
-après leur premier démarrage. La configuration doit être réalisée
-avec Ansible.
-
-## Phases
-
-1. Infrastructure, Ansible, hardening, Docker et K3s
-2. Dockerfiles et Docker Compose
-3. CI/CD, Hadolint, Trivy et Docker Hub
-4. Kubernetes, Traefik et Keycloak
-5. Prometheus, Grafana, Loki et Promtail
-6. Rapport et préparation de la soutenance
-
-## État actuel
-
-La structure propre du dépôt a été créée.
-
-La prochaine étape sera la configuration du Vagrantfile de la
-machine Master.
+**UNIVERSITÉ ESPOIR D’AFRIQUE — MGGT1103 — GROUPE 4**

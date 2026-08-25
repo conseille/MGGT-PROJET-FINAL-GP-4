@@ -10,7 +10,7 @@ data:
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
-      <title>Smart City IoT - MGGT1103 - Groupe 4</title>
+      <title>Smart City IoT Console - Groupe 4</title>
       <style>
         body { font-family: system-ui, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
         section { border: 1px solid #aaa; border-radius: 12px; padding: 1rem; margin-bottom: 1rem; }
@@ -75,8 +75,8 @@ data:
     </style>
     </head>
     <body>
-      <h1>Smart City IoT - MGGT1103 - Groupe 4</h1>
-      <p>Université Espoir d’Afrique — Plateforme Smart City IoT — Eclipse Mosquitto sur Kubernetes.</p>
+      <h1>Smart City IoT Console - Groupe 4</h1>
+      <p><strong>MGGT1103 • SMART CITY PLATFORM • GROUPE 4</strong><br>Messagerie MQTT & télémétrie — Eclipse Mosquitto sur Kubernetes.</p>
       <section>
         <label>Sujet <input id="topic" value="smartcity/capteurs/temperature"></label>
         <label>Message <input id="message" value='{"site":"campus","valeur":24,"unite":"C"}'></label>

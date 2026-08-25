@@ -1,0 +1,18 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: smartcity-mqtt-websocket
+  namespace: mggt-smartcity
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: app2.projet.local
+      http:
+        paths:
+          - path: /mqtt
+            pathType: Prefix
+            backend:
+              service:
+                name: app2-mqtt
+                port:
+                  number: 9001
